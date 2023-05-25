@@ -14,10 +14,11 @@ use crate::{fetch::fetch, Error, ResponseBody};
 pub async fn call(
     mut base_url: String,
     request: Request<BoxBody>,
+    headers: Vec<(String, String)>
 ) -> Result<Response<ResponseBody>, Error> {
     base_url.push_str(&request.uri().to_string());
 
-    let headers = prepare_headers(request.headers())?;
+    let headers = prepare_headers(request.headers(), headers)?;
     let body = prepare_body(request).await?;
 
     let request = prepare_request(&base_url, headers, body)?;
@@ -34,7 +35,7 @@ pub async fn call(
     result.body(body).map_err(Into::into)
 }
 
-fn prepare_headers(header_map: &HeaderMap<HeaderValue>) -> Result<Headers, Error> {
+fn prepare_headers(header_map: &HeaderMap<HeaderValue>, more_headers: Vec<(String, String)>) -> Result<Headers, Error> {
     let headers = Headers::new().map_err(Error::js_error)?;
 
     headers
@@ -51,6 +52,12 @@ fn prepare_headers(header_map: &HeaderMap<HeaderValue>) -> Result<Headers, Error
                 .append(header_name.as_str(), header_value.to_str()?)
                 .map_err(Error::js_error)?;
         }
+    }
+
+    for header in more_headers {
+        headers
+            .append(header.0.as_str(), header.1.as_str())
+            .map_err(Error::js_error)?;
     }
 
     Ok(headers)
